@@ -1,6 +1,10 @@
 package obj
 
-import "github.com/g3n/engine/math32"
+import (
+	"encoding/json"
+
+	"github.com/g3n/engine/math32"
+)
 
 var xAixs = math32.Vector3{X: 1, Y: 0, Z: 0}
 var yAixs = math32.Vector3{X: 0, Y: 1, Z: 0}
@@ -23,9 +27,13 @@ type Object struct {
 
 func NewObject(id uint64) *Object {
 	tmp := &Object{
+		Id:              id,
+		Quat:            math32.Quaternion{W: 1},
 		localAutoUpdate: true,
 		worldAutoUpdate: true,
 	}
+	tmp.Local.Identity()
+	tmp.World.Identity()
 	return tmp
 }
 
@@ -195,6 +203,22 @@ func (o *Object) Add(objs ...*Object) {
 	}
 }
 
+func (o *Object) GetWorldPosition() *math32.Vector3 {
+	o.UpdateWorldMatrix(true, false)
+
+	v := &math32.Vector3{}
+	v.SetFromMatrixPosition(&o.World)
+	return v
+}
+
+func (o *Object) GetWorldQuaternion() *math32.Quaternion {
+	o.UpdateWorldMatrix(true, false)
+
+	q := &math32.Quaternion{}
+	o.World.Decompose(&math32.Vector3{}, q, &math32.Vector3{})
+	return q
+}
+
 func (o *Object) GetObjectById(id uint64) *Object {
 	for idx := range o.children {
 		obj := o.children[idx]
@@ -227,6 +251,15 @@ func (o *Object) Remove(objs ...*Object) {
 	}
 }
 
+func (o *Object) Json() string {
+	s, err := json.Marshal(o)
+	if err != nil {
+		return ""
+	}
+
+	return string(s)
+}
+
 type Scene struct {
 	Object
 	objs map[uint64]*Object
@@ -234,7 +267,8 @@ type Scene struct {
 
 func NewScene() *Scene {
 	s := &Scene{
-		objs: make(map[uint64]*Object),
+		Object: *NewObject(0),
+		objs:   make(map[uint64]*Object),
 	}
 	return s
 }
